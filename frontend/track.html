@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Location Sharing</title>
+    <style>
+      :root {
+        color: #e5e7eb;
+        background:
+          radial-gradient(circle at top, rgba(34, 197, 94, 0.24), transparent 32%),
+          radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.18), transparent 30%),
+          #05070d;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: min(640px, 100%);
+        padding: 32px;
+        border-radius: 28px;
+        background: rgba(8, 12, 20, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(18px);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #86efac;
+        background: rgba(34, 197, 94, 0.12);
+      }
+
+      h1 {
+        margin: 18px 0 12px;
+        font-size: clamp(2rem, 6vw, 3.5rem);
+        line-height: 0.96;
+        letter-spacing: -0.05em;
+      }
+
+      p {
+        margin: 0;
+        line-height: 1.6;
+        color: rgba(229, 231, 235, 0.78);
+      }
+
+      .meta {
+        margin-top: 18px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .badge,
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e5e7eb;
+        overflow-wrap: anywhere;
+      }
+
+      .status {
+        margin-top: 18px;
+        min-height: 48px;
+      }
+
+      .actions {
+        margin-top: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        padding: 14px 18px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 160ms ease, opacity 160ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.7;
+        transform: none;
+      }
+
+      .start {
+        color: #081018;
+        background: linear-gradient(135deg, #8ee3ff, #c7ff9a);
+      }
+
+      .stop {
+        color: #e5e7eb;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .location {
+        margin-top: 20px;
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .location div {
+        padding: 14px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: rgba(229, 231, 235, 0.58);
+      }
+
+      .error {
+        color: #fca5a5;
+        margin-top: 16px;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.64);
+        backdrop-filter: blur(10px);
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal {
+        width: min(460px, 100%);
+        padding: 24px;
+        border-radius: 24px;
+        background: #0b1020;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+      }
+
+      .modal h2 {
+        margin: 0 0 10px;
+        font-size: 1.4rem;
+      }
+
+      .modal p {
+        color: rgba(229, 231, 235, 0.8);
+      }
+
+      .modal-actions {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .accept {
+        color: #081018;
+        background: linear-gradient(135deg, #8ee3ff, #c7ff9a);
+      }
+
+      .decline {
+        color: #e5e7eb;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      @media (max-width: 640px) {
+        .card {
+          padding: 22px;
+          border-radius: 22px;
+        }
+
+        .meta,
+        .location {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <span class="eyebrow">Location sharing</span>
+      <h1>Share your location with consent</h1>
+      <p>This page only sends your location after you tap Start sharing and approve the browser prompt.</p>
+
+      <div class="meta">
+        <div class="badge" id="sessionLabel">Session: loading...</div>
+        <div class="badge" id="connectionLabel">Socket: idle</div>
+      </div>
+
+      <div class="actions">
+        <button class="start" id="startButton">Start sharing</button>
+        <button class="stop" id="stopButton" disabled>Stop sharing</button>
+      </div>
+
+      <div class="status" id="statusBox">Tap Start sharing to connect and request location access.</div>
+
+      <section class="location" aria-live="polite">
+        <div>
+          <span class="label">Latitude</span>
+          <strong id="latValue">--</strong>
+        </div>
+        <div>
+          <span class="label">Longitude</span>
+          <strong id="lngValue">--</strong>
+        </div>
+        <div>
+          <span class="label">Accuracy</span>
+          <strong id="accuracyValue">--</strong>
+        </div>
+        <div>
+          <span class="label">Updated</span>
+          <strong id="updatedValue">--</strong>
+        </div>
+      </section>
+
+      <p class="error" id="errorBox"></p>
+    </main>
+
+    <div class="modal-backdrop open" id="consentBackdrop" role="dialog" aria-modal="true" aria-labelledby="consentTitle">
+      <div class="modal">
+        <h2 id="consentTitle">Share your location?</h2>
+        <p>
+          This will send your live location to the tracker session only after you
+          explicitly allow it and approve the browser permission request.
+        </p>
+        <div class="modal-actions">
+          <button class="accept" id="acceptConsentButton">Allow and start</button>
+          <button class="decline" id="declineConsentButton">Not now</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session');
+      const label = params.get('label');
+      const wsBase = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
+
+      const sessionLabel = document.getElementById('sessionLabel');
+      const connectionLabel = document.getElementById('connectionLabel');
+      const statusBox = document.getElementById('statusBox');
+      const errorBox = document.getElementById('errorBox');
+      const startButton = document.getElementById('startButton');
+      const stopButton = document.getElementById('stopButton');
+      const latValue = document.getElementById('latValue');
+      const lngValue = document.getElementById('lngValue');
+      const accuracyValue = document.getElementById('accuracyValue');
+      const updatedValue = document.getElementById('updatedValue');
+      const consentBackdrop = document.getElementById('consentBackdrop');
+      const acceptConsentButton = document.getElementById('acceptConsentButton');
+      const declineConsentButton = document.getElementById('declineConsentButton');
+
+      let socket = null;
+      let watchId = null;
+
+      if (sessionId) {
+        sessionLabel.textContent = label ? `Identifier: ${label}` : `Session: ${sessionId}`;
+      } else {
+        sessionLabel.textContent = 'Session: missing';
+        statusBox.textContent = 'Open this page from a tracking link that includes a session id.';
+        startButton.disabled = true;
+      }
+
+      if (!label) {
+        statusBox.textContent = 'Open this page from a tracking link that includes a participant identifier.';
+        startButton.disabled = true;
+      }
+
+      function setStatus(message) {
+        statusBox.textContent = message;
+      }
+
+      function closeConsent() {
+        consentBackdrop.classList.remove('open');
+      }
+
+      function stopSharing() {
+        if (watchId !== null) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+
+        if (socket) {
+          socket.close();
+          socket = null;
+        }
+
+        connectionLabel.textContent = 'Socket: closed';
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        setStatus('Location sharing stopped.');
+      }
+
+      function startSharing() {
+        if (!sessionId || !label || socket) {
+          return;
+        }
+
+        errorBox.textContent = '';
+        setStatus('Connecting to the tracker...');
+
+        socket = new WebSocket(`${wsBase}/ws?session=${encodeURIComponent(sessionId)}&role=tracker&label=${encodeURIComponent(label)}`);
+
+        socket.onopen = () => {
+          connectionLabel.textContent = 'Socket: connected';
+          startButton.disabled = true;
+          stopButton.disabled = false;
+          setStatus('Browser permission requested. Approve it to share your location.');
+
+          watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              const { latitude, longitude, accuracy } = position.coords;
+              const payload = {
+                type: 'LOCATION',
+                label,
+                lat: latitude,
+                lng: longitude,
+                accuracy: accuracy,
+                heading: position.coords.heading,
+                speed: position.coords.speed
+              };
+
+              latValue.textContent = latitude.toFixed(6);
+              lngValue.textContent = longitude.toFixed(6);
+              accuracyValue.textContent = `${Math.round(accuracy)} m`;
+              updatedValue.textContent = new Date().toLocaleTimeString();
+              setStatus('Live location updates are being sent in real time.');
+
+              if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(payload));
+              }
+            },
+            (error) => {
+              errorBox.textContent = error.message;
+              setStatus('Location permission was denied or unavailable.');
+              stopSharing();
+            },
+            { enableHighAccuracy: true, maximumAge: 1000, timeout: 15000 }
+          );
+        };
+
+        socket.onclose = () => {
+          connectionLabel.textContent = 'Socket: closed';
+          if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+          }
+          startButton.disabled = false;
+          stopButton.disabled = true;
+        };
+
+        socket.onerror = () => {
+          errorBox.textContent = 'Could not connect to the tracker server.';
+          setStatus('Connection failed.');
+        };
+      }
+
+      acceptConsentButton.addEventListener('click', () => {
+        closeConsent();
+        startSharing();
+      });
+
+      declineConsentButton.addEventListener('click', () => {
+        closeConsent();
+        setStatus('Location sharing was not started.');
+      });
+
+      startButton.addEventListener('click', () => {
+        consentBackdrop.classList.add('open');
+      });
+
+      stopButton.addEventListener('click', stopSharing);
+      window.addEventListener('beforeunload', stopSharing);
+    </script>
+  </body>
+</html>
