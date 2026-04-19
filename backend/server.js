@@ -41,7 +41,7 @@ app.post("/api/create-session", (req, res) => {
 
   getSession(sessionId);
 
-  const frontendOrigin = req.headers.origin || "http://localhost:5173";
+  const frontendOrigin = process.env.FRONTEND_URL || "";
 
   res.json({
     sessionId,
